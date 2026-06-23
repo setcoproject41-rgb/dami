@@ -91,22 +91,29 @@ export default function Home() {
           
         if (error) throw error;
         
-        const PREDEFINED_FOLDERS = [
-          "MGL - JT.01",
-          "JT.01 - JT.02",
-          "JT.02 - JT.03",
-          "JT.03 - JT.04",
-          "JT.04 - JT.05",
-          "JT.05 - JT.06",
-          "JT.06 - JT.07",
-          "JT.07 - JT.08",
-          "JT.08 - JT.09",
-          "JT.09 - TEM"
+        const TASK_CATEGORIES = [
+          "BC-TR (GALIAN) / BORING MANUAL / ROJOK (DD-BM)",
+          "PEMASANGAN SUBDUCT / HDPE / PIPA",
+          "PEMBUATAN & PEMASANGAN HANDHOLE",
+          "PENARIKKAN KABEL FEEDER",
+          "PENARIKKAN KABEL DISTRIBUSI",
+          "PEMASANGAN TIANG 7m / 9m",
+          "PEMASANGAN ODC",
+          "PEMASANGAN ODP",
+          "PEMASANGAN DAN TERMINASI OTB",
+          "PEMASANGAN CLOSURE",
+          "PEMASANGAN AKSESORIS",
+          "TERMINASI ODC",
+          "TERMINASI ODP",
+          "TERMINASI CLOSURE",
+          "PEMASANGAN IKR/IKG",
+          "INSTALASI FTM",
+          "INSTALASI JUMPER FTM (OLT-FEEDER)"
         ];
         
         const wbs: WbsRow[] = [];
         
-        PREDEFINED_FOLDERS.forEach((folder) => {
+        TASK_CATEGORIES.forEach((folder) => {
           const folderReports = (reports || []).filter(r => r.kategori === folder);
           
           // 1. Add folder header row

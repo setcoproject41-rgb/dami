@@ -12,45 +12,86 @@ laporan_router = Router()
 
 STORAGE_CHANNEL_ID = int(os.environ.get("STORAGE_CHANNEL_ID", "0"))
 
-PREDEFINED_FOLDERS = [
-    "MGL - JT.01",
-    "JT.01 - JT.02",
-    "JT.02 - JT.03",
-    "JT.03 - JT.04",
-    "JT.04 - JT.05",
-    "JT.05 - JT.06",
-    "JT.06 - JT.07",
-    "JT.07 - JT.08",
-    "JT.08 - JT.09",
-    "JT.09 - TEM"
-]
+# --- TASK TO DESIGNATOR MAPPING FROM KATEGORI.csv ---
+TASK_DESIGNATOR_MAP = {
+    "BC-TR (GALIAN) / BORING MANUAL / ROJOK (DD-BM)": ["EXCAVATION-0.4", "EXCAVATION-0.6", "EXCAVATION-1.0", "EXCAVATION-1.2", "EXCAVATION-1.5", "BCTR-ROCK", "BD-SK", "DD-BRNG-HDPE-40-1", "DD-BRNG-HDPE-40-2", "DD-BRNG-HDPE-50-1", "DD-BRNG-HDPE-50-2", "DD-ROD", "DD-RV-1", "DD-RV-CONCRETE", "DD-DS-S1", "DD-DS-COD1-M"],
+    "PEMASANGAN SUBDUCT / HDPE / PIPA": ["HDPE-40-33", "PIPE-BRIDGE", "RP-GALVANIS"],
+    "PEMBUATAN & PEMASANGAN HANDHOLE": ["MH-HH-170", "MH-PIT-120", "HH-PIT-80", "HH-PIT-P-HA", "HH-PIT-P-FAT", "HH-PIT-P-FDT", "MH-HH-REKONDISI"],
+    "PENARIKKAN KABEL FEEDER": ["AC-ADSS-SM-48C", "AC-ADSS-SM-96C", "AC-ADSS-SM-144C", "AC-ADSS-SM-288C"],
+    "PENARIKKAN KABEL DISTRIBUSI": ["AC-ADSS-SM-12C", "AC-ADSS-SM-24C", "AC-ADSS-SM-48C", "AC-ADSS-SM-96C"],
+    "PEMASANGAN TIANG 7m / 9m": ["NP-6.0-100-1S", "NP-7.0-140-2S", "NP-7.0-140-3S", "NP-9.0-140-3S", "NP-CB-7.0-250", "NP-CB-9.0-250"],
+    "PEMASANGAN ODC": ["FDT-POLE-48C", "FDT-POLE-96C", "FDT-STDG-96C", "FDT-STDG-144C", "FDT-STDG-288C"],
+    "PEMASANGAN ODP": ["FAT-PB-8C-SOLID", "FAT-PB-16C-SOLID", "FAT-PDSTL-8", "FAT-PDSTL-16"],
+    "PEMASANGAN DAN TERMINASI OTB": ["Base Tray ODC", "OTB-SM-6", "OTB-SM-8", "OTB-SM-12", "OTB-SM-24", "OTB-SM-48", "OTB-SM-96", "OTB-SM-144", "OTB-SM-288"],
+    "PEMASANGAN CLOSURE": ["JC-OF-SM-12C", "JC-OF-SM-24C", "JC-OF-SM-48C", "JC-OF-SM-96C", "JC-OF-SM-144C", "JC-OF-SM-288C"],
+    "PEMASANGAN AKSESORIS": ["ACC-STAINLESS BELT", "ACC-SUSPENSION AYUN", "ACC-HELLICAL", "ACC-ANCHORING", "ACC-Bracket", "ACC-POLESTRAP SPIRAL"],
+    "TERMINASI ODC": ["FS-OF-SM", "NN-OTDR-CORE", "NN-CO-CORE"],
+    "TERMINASI ODP": ["FS-OF-SM", "NN-CO-CORE"],
+    "TERMINASI CLOSURE": ["FS-OF-SM", "NN-CO-CORE"],
+    "PEMASANGAN IKR/IKG": [],
+    "INSTALASI FTM": [],
+    "INSTALASI JUMPER FTM (OLT-FEEDER)": []
+}
 
-ALL_DESIGNATORS = [
-    "DC-OF-SM-48C", "AC-OF-SM-48C", "SC-OF-SM-48", "OS-SM-1", "TC-SM-48", 
-    "PU-S7.0-140", "PU-S9.0-140", "PU-AS", "PP-OF-IN", "DD-S3-1", 
-    "DD-BSS-S1", "HB-PS-1", "DD-BM-100-1", "DD-BM-HDPE-40-1", 
-    "DD-HDPE-40-1", "DD-ROD", "DD-RV-1", "DD-RV-CONCRETE", "DD-RV-C",
-    "MH-HH2", "BC-TR-SOIL-1", "BC-TR-SOIL-2", "BC-TR-C-1", "BC-TR-C-5", 
-    "SLACK SUPPORT POLE"
-]
+CATEGORIES = list(TASK_DESIGNATOR_MAP.keys())
 
-CAT_A = [
-    "DD-S3-1", "DD-BSS-S1", "HB-PS-1", "DD-BTS-S1", "OS-SM-1", 
-    "SLACK SUPPORT POLE", "PU-S7.0-140", "PU-S9.0-140", "PU-AS", 
-    "MH-HH2", "DD-RV-C", "TC-SM-48", "SC-OF-SM-48", "PP-OF-IN"
-]
+def get_photo_requirement_message(t: str) -> str:
+    if 'BC-TR (GALIAN)' in t:
+        return "\n\n  _\"upload foto dari volume satuan per 100M 1foto jadi jika volume di isi 200 maka wajib upload 2foto\"_\n"
+    if 'PEMASANGAN SUBDUCT' in t:
+        return "\n\n  _\"upload foto min 4 foto per laporan\"_\n"
+    if 'HANDHOLE' in t:
+        return "\n\n  _\". FOTO PENGUKURAN PANJANG\n  . FOTO PENGUKURAN LEBAR\n  . FOTO PENGUKURAN KEDALAMAN\n  . FOTO TAMPAK JAUH FULL\"_\n"
+    if 'KABEL' in t:
+        return "\n\n  _\"FOTO Wajib berdasarkan volume 2 foto \n  . FOTO MARKING START\n  . FOTO MARKING END\n  upload foto dari volume satuan per 200M 1foto jadi jika volume di isi 400 maka wajib upload 2foto\"_\n"
+    if 'PEMASANGAN TIANG' in t:
+        return "\n\n  _\". TAMPAK JAUH\n  . TAMPAK ATAS\n  . TAMPAK BAWAH (COR)\n  . TAMPAK DEKAT\"_\n"
+    if 'PEMASANGAN ODC' in t:
+        return "\n\n  _\". TAMPAK DALAM TERLIHAT FULL\n  . TAMPAK LUAR POSISI TERTUTUP\n  . TAMPAK JAUH\n  . TAMPAK BLAKANG\"_\n"
+    if 'PEMASANGAN ODP' in t:
+        return "\n\n  _\". TAMPAK SAMBUNGAN\n  . TAMPAK ACC ODP\n  . TAMPAK FULL POSISI TERTUTUP DAN SUDAH TERLABEL\n  . EVIDEN REDAMAN PER PORT 1-16\n  . TAMPAK JAUH\"_\n"
+    if 'PEMASANGAN DAN TERMINASI OTB' in t:
+        return "\n\n  _\". TAMPAK DEPAN\n  . TAMPAK JAUH\n  . EVIDEN SAAT TERMINASI MIN 4 FOTO\n  . EVIDEN PENGUKURAN\n  . TAMPAK DEKAT/PROSES\"_\n"
+    if 'PEMASANGAN CLOSURE' in t:
+        return "\n\n  _\". TAMPAK DALAM\n  . TAMPAK LUAR\n  . EVIDEN SAAT TERMINASI TIAP KASET\n  . TAMPAK JAUH (SUDAH TERTUTUP)\"_\n"
+    if 'TERMINASI ODC' in t:
+        return "\n\n  _\"upload foto minimal 2 foto setiap 12 volume core\n  . TAMPAK BESTRAY TERBUKA SAAT SETELAH SELESAI TERMINASI\n  . TAMPAK BESTRAY TERPASANG SAMBIL MENUNJUK\"_\n"
+    if 'TERMINASI ODP' in t:
+        return "\n\n  _\"upload foto minimal 2 foto setiap 1 volume core\n  . TAMPAK SETELAH SELESAI TERMINASI\n  . TAMPAK PROGRES TERMINASI\"_\n"
+    if 'TERMINASI CLOSURE' in t:
+        return "\n\n  _\"upload foto minimal 2 foto setiap 12 volume core\n  . TAMPAK TIAP KASET\n  . TAMPAK PROGRES\"_\n"
+    if 'PERAPIHAN' in t:
+        return "\n\n  _\"UPLOAD FOTO LABELING MIN 4 FOTO\"_\n"
+    return "\n"
 
-def get_min_photos(designator: str, volume: float) -> int:
-    if designator in CAT_A:
-        return 1
-    else:
-        return math.ceil(volume / 25.0)
+def get_required_photo_count(t: str, vol: float) -> int:
+    required_photos = 1
+    if 'GALIAN' in t or 'ROJOK' in t:
+        required_photos = max(1, math.ceil(vol / 100.0))
+    elif 'SUBDUCT' in t or 'HDPE' in t or 'PEMASANGAN ODC' in t or 'CLOSURE' in t or 'PERAPIHAN' in t:
+        required_photos = 4
+    elif 'HANDHOLE' in t or 'TIANG' in t:
+        required_photos = int(vol * 4)
+    elif 'FEEDER' in t or 'DISTRIBUSI' in t:
+        required_photos = 2 + math.ceil(vol / 200.0)
+    elif 'PEMASANGAN ODP' in t:
+        required_photos = int(vol * 20)
+    elif 'OTB' in t:
+        required_photos = 8
+    elif 'TERMINASI ODC' in t or 'TERMINASI CLOSURE' in t:
+        required_photos = max(1, math.ceil(vol / 12.0) * 2)
+    elif 'TERMINASI ODP' in t:
+        required_photos = int(vol * 2)
+    return required_photos
 
 def get_uom(designator: str) -> str:
-    if designator in ["PU-S7.0-140", "PU-S9.0-140", "PU-AS"]:
-        return "pcs"
-    elif "BC-TR" in designator or "DD-HDPE" in designator or "DD-BM" in designator:
+    des_upper = designator.upper()
+    if any(k in des_upper for k in ["EXCAVATION", "HDPE", "PIPE", "ADSS", "FEEDER", "DISTRIBUSI"]):
         return "meter"
+    elif "CORE" in des_upper or "FS-OF-SM" in des_upper or "OTB-SM" in des_upper:
+        return "core"
+    elif any(k in des_upper for k in ["NP-", "MH-", "HH-", "FDT-", "FAT-", "JC-", "ACC-", "BRACKET", "BELT"]):
+        return "pcs"
     return "Lot"
 
 # 1. Menu Trigger
@@ -72,37 +113,39 @@ async def start_laporan(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("📋 **PILIH PROJECT UNTUK DILAPORKAN**\n\nSilakan pilih salah satu project:", reply_markup=kb, parse_mode="Markdown")
     await state.set_state(LaporanProgress.waiting_for_project)
 
-# 2. Project Selected -> Select Folder
+# 2. Project Selected -> Select Category (Folder)
 @laporan_router.callback_query(LaporanProgress.waiting_for_project, F.data.startswith("selectproj_"))
 async def process_project_select(callback: types.CallbackQuery, state: FSMContext):
     project_id = callback.data.split("_")[1]
     await state.update_data(project_id=project_id)
     
     keyboard_buttons = []
-    for i in range(0, len(PREDEFINED_FOLDERS), 2):
-        row = [
-            InlineKeyboardButton(text=PREDEFINED_FOLDERS[j], callback_data=f"selectfold_{PREDEFINED_FOLDERS[j]}")
-            for j in range(i, min(i+2, len(PREDEFINED_FOLDERS)))
-        ]
-        keyboard_buttons.append(row)
+    # Display categories (one per row since text is long)
+    for idx, category in enumerate(CATEGORIES):
+        keyboard_buttons.append([InlineKeyboardButton(text=category, callback_data=f"selectfold_{idx}")])
         
     keyboard_buttons.append([InlineKeyboardButton(text="🔙 Kembali", callback_data="menu_laporan_project")])
     kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    await callback.message.edit_text("📍 **PILIH SEKTOR / FOLDER PEKERJAAN**\n\nSilakan pilih sub-sektor lokasi:", reply_markup=kb, parse_mode="Markdown")
+    await callback.message.edit_text("📍 **PILIH KATEGORI PEKERJAAN**\n\nSilakan pilih kategori:", reply_markup=kb, parse_mode="Markdown")
     await state.set_state(LaporanProgress.waiting_for_folder)
 
-# 3. Folder Selected -> Select Designator
+# 3. Category Selected -> Select Designator
 @laporan_router.callback_query(LaporanProgress.waiting_for_folder, F.data.startswith("selectfold_"))
 async def process_folder_select(callback: types.CallbackQuery, state: FSMContext):
-    folder_name = callback.data.split("_")[1]
-    await state.update_data(folder_name=folder_name)
+    idx = int(callback.data.split("_")[1])
+    category_name = CATEGORIES[idx]
+    await state.update_data(folder_name=category_name)
     
+    designators = TASK_DESIGNATOR_MAP.get(category_name, [])
+    if not designators:
+        designators = [category_name] # Use category itself if empty
+        
     keyboard_buttons = []
-    for i in range(0, len(ALL_DESIGNATORS), 2):
+    for i in range(0, len(designators), 2):
         row = [
-            InlineKeyboardButton(text=ALL_DESIGNATORS[j], callback_data=f"selectdesig_{ALL_DESIGNATORS[j]}")
-            for j in range(i, min(i+2, len(ALL_DESIGNATORS)))
+            InlineKeyboardButton(text=designators[j], callback_data=f"selectdesig_{idx}_{j}")
+            for j in range(i, min(i+2, len(designators)))
         ]
         keyboard_buttons.append(row)
         
@@ -113,13 +156,23 @@ async def process_folder_select(callback: types.CallbackQuery, state: FSMContext
     keyboard_buttons.append([InlineKeyboardButton(text="🔙 Kembali", callback_data=f"selectproj_{project_id}")])
     kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    await callback.message.edit_text(f"⚙️ **SEKTOR: {folder_name}**\n\nPilih Designator Pekerjaan:", reply_markup=kb, parse_mode="Markdown")
+    await callback.message.edit_text(f"⚙️ **KATEGORI: {category_name}**\n\nPilih Designator Pekerjaan:", reply_markup=kb, parse_mode="Markdown")
     await state.set_state(LaporanProgress.waiting_for_designator)
 
 # 4. Designator Selected -> Input Volume
 @laporan_router.callback_query(LaporanProgress.waiting_for_designator, F.data.startswith("selectdesig_"))
 async def process_designator_select(callback: types.CallbackQuery, state: FSMContext):
-    designator = callback.data.split("_")[1]
+    parts = callback.data.split("_")
+    cat_idx = int(parts[1])
+    des_idx = int(parts[2])
+    
+    category_name = CATEGORIES[cat_idx]
+    designators = TASK_DESIGNATOR_MAP.get(category_name, [])
+    if not designators:
+        designator = category_name
+    else:
+        designator = designators[des_idx]
+        
     uom = get_uom(designator)
     await state.update_data(designator=designator, uom=uom)
     
@@ -139,10 +192,13 @@ async def process_volume(message: types.Message, state: FSMContext):
         return
         
     data = await state.get_data()
+    category_name = data.get("folder_name")
     designator = data.get("designator")
-    min_photos = get_min_photos(designator, volume)
     
-    await state.update_data(min_photos=min_photos, evidence_files=[])
+    min_photos = get_required_photo_count(category_name, volume)
+    req_message = get_photo_requirement_message(category_name)
+    
+    await state.update_data(min_photos=min_photos, req_message=req_message, evidence_files=[])
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Selesai Upload", callback_data="selesai_upload_photos")]
@@ -151,7 +207,8 @@ async def process_volume(message: types.Message, state: FSMContext):
     instructions = (
         f"📸 **UPLOAD FOTO EVIDENT**\n\n"
         f"Pekerjaan: **{designator}** (Volume: {volume} {data.get('uom')})\n"
-        f"Wajib mengirim minimal: **{min_photos} foto**.\n\n"
+        f"Wajib mengirim minimal: **{min_photos} foto**.\n"
+        f"{req_message}\n"
         f"Silakan kirim foto satu per satu (sebagai compressed photo, bukan berkas/document).\n"
         f"Jika semua foto sudah terkirim, klik tombol **Selesai Upload** di bawah."
     )
@@ -211,7 +268,7 @@ async def finish_photo_upload(callback: types.CallbackQuery, state: FSMContext):
     summary = (
         "📝 **KONFIRMASI LAPORAN PROGRESS** 📝\n\n"
         f"🏢 **Project:** {project.get('proyek')} ({project.get('nama_mitra')})\n"
-        f"📍 **Sektor/Folder:** {data.get('folder_name')}\n"
+        f"📍 **Kategori:** {data.get('folder_name')}\n"
         f"⚙️ **Designator:** {data.get('designator')}\n"
         f"📊 **Volume:** {data.get('volume')} {data.get('uom')}\n"
         f"📸 **Jumlah Foto:** {len(evidence_files)} foto\n\n"
