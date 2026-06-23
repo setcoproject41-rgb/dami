@@ -1,0 +1,2 @@
+cd "D:\LMJ TEMANGGUNG\GRAVITY MAGELANG\DATA COLLECT"
+python telegram_bot_report.py
