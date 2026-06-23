@@ -1,76 +1,38 @@
 import sys
 import os
+from http.server import BaseHTTPRequestHandler
 import json
 import asyncio
+from aiogram import types
 
-# Tambahkan folder telegram_bot ke sys.path agar dapat di-import
-bot_dir = os.path.join(os.path.dirname(__file__), 'telegram_bot')
-sys.path.append(bot_dir)
+# Add bot directory to sys.path so we can import from it
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'bot'))
 
 from main import dp, bot
-from aiogram.types import Update
 
-async def read_body(receive):
-    body = b''
-    more_body = True
-    while more_body:
-        message = await receive()
-        body += message.get('body', b'')
-        more_body = message.get('more_body', False)
-    return body
-
-async def app(scope, receive, send):
-    if scope['type'] != 'http':
-        return
-
-    method = scope.get('method', 'GET')
-
-    if method == 'POST':
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
         try:
-            body = await read_body(receive)
-            update_data = json.loads(body.decode('utf-8'))
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
             
-            # Parse Telegram Update
-            update = Update.model_validate(update_data, context={"bot": bot})
+            update_dict = json.loads(post_data.decode('utf-8'))
+            update = types.Update(**update_dict)
             
-            # Berikan update ke dispatcher aiogram secara asinkron
-            await dp.feed_update(bot, update)
+            # Feed update to the dispatcher
+            asyncio.run(dp.feed_update(bot, update))
             
-            # Kirim respon 200 OK ke Telegram
-            await send({
-                'type': 'http.response.start',
-                'status': 200,
-                'headers': [
-                    [b'content-type', b'text/plain']
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b"OK",
-            })
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
         except Exception as e:
-            print(f"Error handling webhook update: {str(e)}")
-            await send({
-                'type': 'http.response.start',
-                'status': 500,
-                'headers': [
-                    [b'content-type', b'text/plain']
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': f"Internal Server Error: {str(e)}".encode('utf-8'),
-            })
-    else:
-        # GET request - Verifikasi endpoint aktif
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [
-                [b'content-type', b'text/plain']
-            ]
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': b"Telegram Bot Webhook inside Next.js project is active.",
-        })
+            print(f"Error processing webhook: {e}")
+            self.send_response(500)
+            self.end_headers()
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Telegram webhook is active!")
