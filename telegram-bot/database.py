@@ -3,6 +3,8 @@ import asyncio
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from aiogram.fsm.storage.base import BaseStorage, StorageKey, StateType
+import httpx
+from supabase import ClientOptions
 from typing import Any, Dict, Optional
 
 load_dotenv()
@@ -11,7 +13,7 @@ url: str = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABAS
 key: str = os.environ.get("SUPABASE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
 
 # Initialize Supabase client
-supabase: Client = create_client(url, key)
+supabase: Client = create_client(url, key, options=ClientOptions(http_client=httpx.Client()))
 
 async def check_user_registered(telegram_id: str) -> bool:
     def _check():
