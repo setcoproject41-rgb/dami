@@ -5,10 +5,8 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
-
-from database import check_user_registered, get_user_data, SupabaseStorage, supabase
-from states import Registration
 
 # Load environment variables
 load_dotenv()
@@ -17,9 +15,22 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# Initialize bot and dispatcher
+# Import database (uses local imports since sys.path is set)
+from database import check_user_registered, get_user_data, SupabaseStorage, supabase
+from states import Registration
+
+# Initialize bot
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=SupabaseStorage(supabase))
+
+# Choose storage: use Supabase if available, otherwise fallback to in-memory
+if supabase is None:
+    storage = MemoryStorage()
+    print("Supabase init failed - using MemoryStorage for FSM")
+else:
+    storage = SupabaseStorage(supabase)
+
+# Initialize dispatcher with chosen storage
+dp = Dispatcher(storage=storage)
 
 # Main menu keyboard
 def get_main_menu():

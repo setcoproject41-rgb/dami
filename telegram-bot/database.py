@@ -13,7 +13,11 @@ url: str = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABAS
 key: str = os.environ.get("SUPABASE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
 
 # Initialize Supabase client
-supabase: Client = create_client(url, key, options=ClientOptions(http_client=httpx.Client()))
+try:
+    supabase: Client = create_client(url, key, options=ClientOptions(http_client=httpx.Client()))
+except Exception as e:
+    print(f"Supabase init error: {e}")
+    supabase = None
 
 async def check_user_registered(telegram_id: str) -> bool:
     def _check():
