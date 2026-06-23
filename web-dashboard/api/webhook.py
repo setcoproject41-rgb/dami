@@ -32,10 +32,10 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
         except Exception as e:
-            self.send_response(500)
+            self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            self.wfile.write(traceback.format_exc().encode('utf-8'))
+            self.wfile.write(f"SERVER ERROR:\n{traceback.format_exc()}".encode('utf-8'))
 
     def do_GET(self):
         self.send_response(200)
