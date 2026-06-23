@@ -1,4 +1,4 @@
 aiogram
-supabase
+supabase>=2.30.0
 python-docx
 python-dotenv
