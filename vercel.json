@@ -16,10 +16,6 @@
       "dest": "api/webhook.py"
     },
     {
-      "src": "/api/evident-image",
-      "dest": "web-dashboard/api/evident-image"
-    },
-    {
       "src": "/(.*)",
       "dest": "web-dashboard/$1"
     }
