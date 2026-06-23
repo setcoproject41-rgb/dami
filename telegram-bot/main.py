@@ -54,7 +54,9 @@ async def command_start_handler(message: types.Message) -> None:
         # TODO: Start registration FSM
         await message.answer(welcome_text)
 
-# Add more handlers here...
+# Include routers
+from handlers_new_project import new_project_router
+dp.include_router(new_project_router)
 
 async def main():
     print("Bot is starting...")
