@@ -1,7 +1,6 @@
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from states import NewProject
-from database import supabase # Assuming supabase is exposed or we'll mock it for now
 
 new_project_router = Router()
 
@@ -83,8 +82,18 @@ async def process_pelaksana(message: types.Message, state: FSMContext):
 @new_project_router.callback_query(F.data == "save_new_project")
 async def save_project(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    # TODO: Insert to Supabase here using supabase client
-    # Example: supabase.table('projects').insert(data).execute()
+    from database import db_create_project
+    
+    await db_create_project(
+        nama_mitra=data.get('nama_mitra'),
+        nama_user=data.get('nama_user'),
+        proyek=data.get('proyek'),
+        no_kontrak=data.get('no_kontrak'),
+        no_po=data.get('no_po'),
+        area_lokasi=data.get('area'),
+        site_operation=data.get('site_operation'),
+        pelaksana=data.get('pelaksana')
+    )
     
     await callback.message.edit_text("🎉 **Data berhasil disimpan ke Database!**\n\nGunakan menu Laporan Project untuk mulai melaporkan progres harian Anda.", parse_mode="Markdown")
     await state.clear()

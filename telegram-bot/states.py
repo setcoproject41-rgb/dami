@@ -1,7 +1,6 @@
 from aiogram.fsm.state import StatesGroup, State
 
 class Registration(StatesGroup):
-    waiting_for_username = State()
     waiting_for_nama = State()
     waiting_for_status = State()
     waiting_for_password = State()
@@ -18,7 +17,9 @@ class NewProject(StatesGroup):
     confirm_data = State()
 
 class LaporanProgress(StatesGroup):
-    # This will be expanded later for the complex nested form
-    waiting_for_area = State()
     waiting_for_project = State()
-    waiting_for_action = State()
+    waiting_for_folder = State()
+    waiting_for_designator = State()
+    waiting_for_volume = State()
+    waiting_for_photos = State()
+    confirm_report = State()
