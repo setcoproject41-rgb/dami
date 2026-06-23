@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
 
-from database import check_user_registered, get_user_data
+from database import check_user_registered, get_user_data, SupabaseStorage, supabase
 from states import Registration
 
 # Load environment variables
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(storage=SupabaseStorage(supabase))
 
 # Main menu keyboard
 def get_main_menu():

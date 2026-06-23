@@ -2,6 +2,8 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from aiogram.fsm.storage.base import BaseStorage, StorageKey, StateType
+from typing import Any, Dict, Optional
 
 load_dotenv()
 
@@ -99,3 +101,71 @@ async def db_get_progress_reports(project_id: str, kategori: str = None, sub_kat
         response = query.order("reported_at", desc=False).execute()
         return response.data
     return await asyncio.to_thread(_get)
+
+class SupabaseStorage(BaseStorage):
+    def __init__(self, supabase_client: Client):
+        self.supabase = supabase_client
+
+    def _get_key(self, key: StorageKey) -> str:
+        return f"bot:{key.bot_id}:chat:{key.chat_id}:user:{key.user_id}"
+
+    async def set_state(self, key: StorageKey, state: StateType = None) -> None:
+        db_key = self._get_key(key)
+        state_str = state.state if hasattr(state, "state") else state
+        
+        def _upsert():
+            # Get existing data to keep it
+            res = self.supabase.table("bot_fsm_states").select("data").eq("key", db_key).execute()
+            existing_data = res.data[0].get("data", {}) if res.data else {}
+            
+            data = {
+                "key": db_key,
+                "state": state_str,
+                "data": existing_data
+            }
+            self.supabase.table("bot_fsm_states").upsert(data).execute()
+        
+        await asyncio.to_thread(_upsert)
+
+    async def get_state(self, key: StorageKey) -> Optional[str]:
+        db_key = self._get_key(key)
+        
+        def _get():
+            res = self.supabase.table("bot_fsm_states").select("state").eq("key", db_key).execute()
+            if res.data:
+                return res.data[0].get("state")
+            return None
+            
+        return await asyncio.to_thread(_get)
+
+    async def set_data(self, key: StorageKey, data: Dict[str, Any]) -> None:
+        db_key = self._get_key(key)
+        
+        def _upsert():
+            # Get existing state to keep it
+            res = self.supabase.table("bot_fsm_states").select("state").eq("key", db_key).execute()
+            existing_state = res.data[0].get("state") if res.data else None
+            
+            payload = {
+                "key": db_key,
+                "state": existing_state,
+                "data": data
+            }
+            self.supabase.table("bot_fsm_states").upsert(payload).execute()
+            
+        await asyncio.to_thread(_upsert)
+
+    async def get_data(self, key: StorageKey) -> Dict[str, Any]:
+        db_key = self._get_key(key)
+        
+        def _get():
+            res = self.supabase.table("bot_fsm_states").select("data").eq("key", db_key).execute()
+            if res.data:
+                return res.data[0].get("data", {})
+            return {}
+            
+        return await asyncio.to_thread(_get)
+
+    async def close(self) -> None:
+        pass
+

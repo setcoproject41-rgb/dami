@@ -16,3 +16,6 @@ task.md
 supabase_schema.sql
 *.rar  
 *.zip  
+
+__pycache__/
+*.pyc

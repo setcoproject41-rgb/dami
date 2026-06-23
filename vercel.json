@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "web-dashboard/package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "api/webhook.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/webhook",
+      "dest": "api/webhook.py"
+    },
+    {
+      "src": "/api/evident-image",
+      "dest": "web-dashboard/api/evident-image"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "web-dashboard/$1"
+    }
+  ]
+}
