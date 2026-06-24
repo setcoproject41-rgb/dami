@@ -263,19 +263,43 @@ export default function Home() {
         rows: infoRows,
       });
 
+      const titleTable = new Table({
+        borders: {
+          top: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
+          left: { style: BorderStyle.NONE },
+          right: { style: BorderStyle.NONE },
+          insideHorizontal: { style: BorderStyle.NONE },
+          insideVertical: { style: BorderStyle.NONE },
+        },
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `"${selectedRow.activity.toUpperCase()}"`,
+                        bold: true,
+                        underline: {},
+                        size: 32, // 16pt
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                width: { size: 100, type: WidthType.PERCENTAGE },
+              }),
+            ],
+          }),
+        ],
+      });
+
       const docChildren: any[] = [
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: `"${selectedRow.activity.toUpperCase()}"`,
-              bold: true,
-              underline: {},
-              size: 32, // 16pt
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
-        }),
+        titleTable,
+        new Paragraph({ text: "", spacing: { before: 200, after: 200 } }),
         infoTable,
         new Paragraph({ text: "", spacing: { before: 150, after: 150 } }),
       ];
@@ -296,7 +320,7 @@ export default function Home() {
                   new ImageRun({
                     data: new Uint8Array(buffer1),
                     type: "jpg",
-                    transformation: { width: 280, height: 210 },
+                    transformation: { width: 241, height: 328 },
                   })
                 ],
                 alignment: AlignmentType.CENTER,
@@ -342,7 +366,7 @@ export default function Home() {
                     new ImageRun({
                       data: new Uint8Array(buffer2),
                       type: "jpg",
-                      transformation: { width: 280, height: 210 },
+                      transformation: { width: 241, height: 328 },
                     })
                   ],
                   alignment: AlignmentType.CENTER,
