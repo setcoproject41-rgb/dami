@@ -179,6 +179,15 @@ body {
   color: var(--accent);
 }
 
+.wbs-table tr.main-header-row td {
+  background-color: rgba(16, 185, 129, 0.22);
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  border-top: 2px solid rgba(16, 185, 129, 0.4);
+}
+
 /* Progress Bar in Table */
 .progress-wrapper {
   width: 100%;

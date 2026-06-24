@@ -29,6 +29,7 @@ interface WbsRow {
   a_start: string;
   a_finish: string;
   isHeader: boolean;
+  isMainHeader?: boolean;
   evidence: { file_id: string; message_id: number | null }[];
 }
 
@@ -93,94 +94,164 @@ export default function Home() {
           .order('reported_at', { ascending: true });
         if (error) throw error;
         // Fetch activity structure from ACTIVITY.csv via API
-        let TASK_CATEGORIES: string[] = [];
+        let activityStructure: Record<string, Record<string, string[]>> = {};
         try {
           const actRes = await fetch('/api/activities');
           if (actRes.ok) {
-            const structure: Record<string, Record<string, string[]>> = await actRes.json();
-            // Flatten all sub-categories from all main categories
-            Object.values(structure).forEach((subCats) => {
-              Object.keys(subCats).forEach((subCat) => {
-                if (!TASK_CATEGORIES.includes(subCat)) {
-                  TASK_CATEGORIES.push(subCat);
-                }
-              });
-            });
+            activityStructure = await actRes.json();
           }
         } catch (e) {
           console.warn('Failed to fetch activity structure, using fallback', e);
         }
-        // Fallback: if API failed, use unique kategori values from reports
-        if (TASK_CATEGORIES.length === 0) {
-          TASK_CATEGORIES = Array.from(new Set((reports || []).map((r: any) => r.kategori)));
-        }
+
+        const fmt = (d: Date | null) => {
+          if (!d || isNaN(d.getTime())) return "-";
+          return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+
         const wbs: WbsRow[] = [];
-        TASK_CATEGORIES.forEach((folder) => {
-          const folderReports = (reports || []).filter((r: any) => r.kategori === folder);
-          if (folderReports.length === 0) return;
-          wbs.push({
-            id: `folder-${folder}`,
-            activity: folder,
-            volume: 0,
-            uom: "",
-            target: 0,
-            progress: 0,
-            a_start: "-",
-            a_finish: "-",
-            isHeader: true,
-            evidence: []
-          });
-          const designators = Array.from(new Set(folderReports.map(r => r.sub_kategori)));
-          let totalProgress = 0;
-          let childCount = 0;
-          let minFolder: Date | null = null;
-          let maxFolder: Date | null = null;
-          designators.forEach((desig) => {
-            const desigReports = folderReports.filter(r => r.sub_kategori === desig);
-            const accum = desigReports.reduce((s, r) => s + Number(r.volume_input || 0), 0);
-            const { target, uom } = getTargetAndUom(desig);
-            const progress = Math.min(100, Math.round((accum / target) * 100));
-            let minDate: Date | null = null;
-            let maxDate: Date | null = null;
-            if (desigReports.length) {
-              const times = desigReports.map(r => new Date(r.reported_at).getTime());
-              minDate = new Date(Math.min(...times));
-              maxDate = new Date(Math.max(...times));
-              if (!minFolder || minDate < minFolder) minFolder = minDate;
-              if (!maxFolder || maxDate > maxFolder) maxFolder = maxDate;
-            }
-            const fmt = (d: Date | null) => {
-              if (!d || isNaN(d.getTime())) return "-";
-              return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            };
-            const evidence: { file_id: string; message_id: number | null }[] = [];
-            desigReports.forEach(r => { if (Array.isArray(r.evidence_files)) evidence.push(...r.evidence_files); });
+
+        // If we have structure from CSV, use it for full 3-level hierarchy
+        if (Object.keys(activityStructure).length > 0) {
+          Object.entries(activityStructure).forEach(([mainCat, subCats]) => {
+            // Count how many sub-categories under this main cat have reports
+            const mainCatReports = (reports || []).filter((r: any) =>
+              Object.keys(subCats).includes(r.kategori)
+            );
+
+            // Always push main category header
+            const mainHeaderIdx = wbs.length;
             wbs.push({
-              id: `desig-${folder}-${desig}`,
-              activity: desig,
-              volume: accum,
-              uom,
-              target,
-              progress,
-              a_start: fmt(minDate),
-              a_finish: progress >= 100 ? fmt(maxDate) : "-",
-              isHeader: false,
-              evidence
+              id: `main-${mainCat}`,
+              activity: mainCat,
+              volume: 0, uom: "", target: 0, progress: 0,
+              a_start: "-", a_finish: "-",
+              isHeader: true, isMainHeader: true,
+              evidence: []
             });
-            totalProgress += progress;
-            childCount++;
+
+            let mainTotalProgress = 0;
+            let mainChildCount = 0;
+            let mainMinDate: Date | null = null;
+            let mainMaxDate: Date | null = null;
+
+            // Sub-categories: only show if they have reports
+            Object.keys(subCats).forEach((subCat) => {
+              const folderReports = (reports || []).filter((r: any) => r.kategori === subCat);
+              if (folderReports.length === 0) return;
+
+              const subHeaderIdx = wbs.length;
+              wbs.push({
+                id: `folder-${subCat}`,
+                activity: subCat,
+                volume: 0, uom: "", target: 0, progress: 0,
+                a_start: "-", a_finish: "-",
+                isHeader: true, isMainHeader: false,
+                evidence: []
+              });
+
+              const designators = Array.from(new Set(folderReports.map((r: any) => r.sub_kategori)));
+              let subTotalProgress = 0;
+              let subChildCount = 0;
+              let subMinDate: Date | null = null;
+              let subMaxDate: Date | null = null;
+
+              designators.forEach((desig) => {
+                const desigReports = folderReports.filter((r: any) => r.sub_kategori === desig);
+                const accum = desigReports.reduce((s: number, r: any) => s + Number(r.volume_input || 0), 0);
+                const { target, uom } = getTargetAndUom(desig as string);
+                const progress = Math.min(100, Math.round((accum / target) * 100));
+                let minDate: Date | null = null;
+                let maxDate: Date | null = null;
+                if (desigReports.length) {
+                  const times = desigReports.map((r: any) => new Date(r.reported_at).getTime());
+                  minDate = new Date(Math.min(...times));
+                  maxDate = new Date(Math.max(...times));
+                  if (!subMinDate || minDate < subMinDate) subMinDate = minDate;
+                  if (!subMaxDate || maxDate > subMaxDate) subMaxDate = maxDate;
+                  if (!mainMinDate || minDate < mainMinDate) mainMinDate = minDate;
+                  if (!mainMaxDate || maxDate > mainMaxDate) mainMaxDate = maxDate;
+                }
+                const evidence: { file_id: string; message_id: number | null }[] = [];
+                desigReports.forEach((r: any) => { if (Array.isArray(r.evidence_files)) evidence.push(...r.evidence_files); });
+                wbs.push({
+                  id: `desig-${subCat}-${desig}`,
+                  activity: desig as string,
+                  volume: accum, uom, target, progress,
+                  a_start: fmt(minDate),
+                  a_finish: progress >= 100 ? fmt(maxDate) : "-",
+                  isHeader: false, evidence
+                });
+                subTotalProgress += progress;
+                subChildCount++;
+              });
+
+              if (subChildCount > 0) {
+                wbs[subHeaderIdx].progress = Math.round(subTotalProgress / subChildCount);
+                wbs[subHeaderIdx].a_start = fmt(subMinDate);
+                if (wbs[subHeaderIdx].progress >= 100) wbs[subHeaderIdx].a_finish = fmt(subMaxDate);
+                mainTotalProgress += wbs[subHeaderIdx].progress;
+                mainChildCount++;
+              }
+            });
+
+            // Update main category header progress
+            if (mainChildCount > 0) {
+              wbs[mainHeaderIdx].progress = Math.round(mainTotalProgress / mainChildCount);
+              wbs[mainHeaderIdx].a_start = fmt(mainMinDate);
+              if (wbs[mainHeaderIdx].progress >= 100) wbs[mainHeaderIdx].a_finish = fmt(mainMaxDate);
+            }
           });
-          const idx = wbs.findIndex(r => r.id === `folder-${folder}`);
-          if (idx !== -1 && childCount > 0) {
-            wbs[idx].progress = Math.round(totalProgress / childCount);
-            const fmt = (d: Date | null) => {
-              if (!d || isNaN(d.getTime())) return "-";
-              return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            };
-            wbs[idx].a_start = fmt(minFolder);
-            if (wbs[idx].progress >= 100) wbs[idx].a_finish = fmt(maxFolder);
-          }
-        });
+        } else {
+          // Fallback: flat structure using unique kategori from reports
+          const TASK_CATEGORIES = Array.from(new Set((reports || []).map((r: any) => r.kategori)));
+          TASK_CATEGORIES.forEach((folder) => {
+            const folderReports = (reports || []).filter((r: any) => r.kategori === folder);
+            if (folderReports.length === 0) return;
+            const folderHeaderIdx = wbs.length;
+            wbs.push({
+              id: `folder-${folder}`,
+              activity: folder as string,
+              volume: 0, uom: "", target: 0, progress: 0,
+              a_start: "-", a_finish: "-",
+              isHeader: true, isMainHeader: true,
+              evidence: []
+            });
+            const designators = Array.from(new Set(folderReports.map((r: any) => r.sub_kategori)));
+            let totalProgress = 0; let childCount = 0;
+            let minFolder: Date | null = null; let maxFolder: Date | null = null;
+            designators.forEach((desig) => {
+              const desigReports = folderReports.filter((r: any) => r.sub_kategori === desig);
+              const accum = desigReports.reduce((s: number, r: any) => s + Number(r.volume_input || 0), 0);
+              const { target, uom } = getTargetAndUom(desig as string);
+              const progress = Math.min(100, Math.round((accum / target) * 100));
+              let minDate: Date | null = null; let maxDate: Date | null = null;
+              if (desigReports.length) {
+                const times = desigReports.map((r: any) => new Date(r.reported_at).getTime());
+                minDate = new Date(Math.min(...times));
+                maxDate = new Date(Math.max(...times));
+                if (!minFolder || minDate < minFolder) minFolder = minDate;
+                if (!maxFolder || maxDate > maxFolder) maxFolder = maxDate;
+              }
+              const evidence: { file_id: string; message_id: number | null }[] = [];
+              desigReports.forEach((r: any) => { if (Array.isArray(r.evidence_files)) evidence.push(...r.evidence_files); });
+              wbs.push({
+                id: `desig-${folder}-${desig}`,
+                activity: desig as string,
+                volume: accum, uom, target, progress,
+                a_start: fmt(minDate),
+                a_finish: progress >= 100 ? fmt(maxDate) : "-",
+                isHeader: false, evidence
+              });
+              totalProgress += progress; childCount++;
+            });
+            if (childCount > 0) {
+              wbs[folderHeaderIdx].progress = Math.round(totalProgress / childCount);
+              wbs[folderHeaderIdx].a_start = fmt(minFolder);
+              if (wbs[folderHeaderIdx].progress >= 100) wbs[folderHeaderIdx].a_finish = fmt(maxFolder);
+            }
+          });
+        }
         setWbsData(wbs);
       } catch (err) {
         console.error('Error fetching progress:', err);
@@ -564,12 +635,17 @@ export default function Home() {
                       wbsData.map(row => {
                         const isSelected = selectedRow?.id === row.id;
                         const hasEvidence = !row.isHeader && row.evidence.length > 0;
+                        const isMainHdr = row.isMainHeader === true;
+                        const isSubHdr  = row.isHeader && !isMainHdr;
                         return (
                           <tr key={row.id}
-                            className={`${row.isHeader ? 'header-row' : 'clickable-row'} ${isSelected ? 'active-row' : ''}`}
+                            className={`${isMainHdr ? 'main-header-row' : isSubHdr ? 'header-row' : 'clickable-row'} ${isSelected ? 'active-row' : ''}`}
                             onClick={() => { if (!row.isHeader) setSelectedRow(row); }}>
-                            <td style={{ paddingLeft: row.isHeader ? '16px' : '36px' }}>
-                              {row.isHeader ? `📁 ${row.activity}` : `📄 ${row.activity}`}
+                            <td style={{
+                              paddingLeft: isMainHdr ? '10px' : isSubHdr ? '24px' : '48px',
+                              fontWeight: isMainHdr ? '800' : isSubHdr ? '600' : '400'
+                            }}>
+                              {isMainHdr ? `🗂️ ${row.activity}` : isSubHdr ? `📁 ${row.activity}` : `📄 ${row.activity}`}
                               {hasEvidence && (
                                 <span style={{ marginLeft: '8px', fontSize: '0.75rem', backgroundColor: 'var(--accent)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>📸 {row.evidence.length}</span>
                               )}
@@ -578,10 +654,16 @@ export default function Home() {
                             <td className="center">{row.isHeader ? '-' : row.uom}</td>
                             <td className="center">{row.isHeader ? '-' : row.target}</td>
                             <td>
-                              <div style={{ marginBottom: '2px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{row.progress}%</span>
-                              </div>
-                              <div className="progress-wrapper"><div className="progress-fill" style={{ width: `${row.progress}%` }} /></div>
+                              {row.isHeader && row.progress === 0 ? (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>-</span>
+                              ) : (
+                                <>
+                                  <div style={{ marginBottom: '2px' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{row.progress}%</span>
+                                  </div>
+                                  <div className="progress-wrapper"><div className="progress-fill" style={{ width: `${row.progress}%` }} /></div>
+                                </>
+                              )}
                             </td>
                             <td>{row.a_start}</td>
                             <td>{row.a_finish}</td>
