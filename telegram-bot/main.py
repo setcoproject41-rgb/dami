@@ -67,6 +67,7 @@ async def command_start_handler(message: types.Message, state: FSMContext) -> No
         # Not registered -> Start registration FSM
         welcome_text = (
             "👋 **Halo! Sepertinya Anda belum terdaftar di sistem kami.**\n\n"
+            f"📌 Telegram ID Anda: `{telegram_id}`\n\n"
             "Silakan lakukan registrasi terlebih dahulu.\n"
             "Ketikkan **Nama Lengkap** Anda untuk memulai:"
         )
