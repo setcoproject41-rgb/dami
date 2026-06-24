@@ -46,6 +46,10 @@ async def command_start_handler(message: types.Message, state: FSMContext) -> No
     await state.clear()
     telegram_id = str(message.from_user.id)
     
+    # Debug log - check telegram_id and supabase status
+    from database import supabase as _sb
+    print(f"[DEBUG] telegram_id={telegram_id}, supabase={'OK' if _sb is not None else 'NONE'}")
+    
     # Check registration
     is_registered = await check_user_registered(telegram_id)
     
