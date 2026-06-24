@@ -1,4 +1,4 @@
-use client;
+"use client";
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,14 +10,15 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, loading } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!telegramId) {
-      setError('Masukkan Telegram ID');
+    setError('');
+    if (!telegramId.trim()) {
+      setError('Masukkan Telegram ID Anda.');
       return;
     }
     try {
-      await login(telegramId);
+      await login(telegramId.trim());
       router.push('/');
     } catch (err) {
       console.error(err);
@@ -26,24 +27,47 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-80">
-        <h2 className="text-2xl font-semibold mb-4 text-center">Login Bot</h2>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+      <form onSubmit={handleSubmit} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', width: '340px', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '8px', color: 'var(--text-primary)', fontSize: '1.5rem' }}>🔐 Login</h2>
+        <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px' }}>Masuk dengan Telegram ID Anda</p>
         <input
           type="text"
-          placeholder="Telegram ID"
+          placeholder="Masukkan Telegram ID"
           value={telegramId}
           onChange={(e) => setTelegramId(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={loading}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            borderRadius: '6px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            color: 'var(--text-primary)',
+            fontSize: '0.95rem',
+            marginBottom: '12px',
+            boxSizing: 'border-box',
+            outline: 'none'
+          }}
         />
-        {error && <p className="text-red-600 mb-2">{error}</p>}
+        {error && <p style={{ color: '#fc8181', fontSize: '0.85rem', marginBottom: '12px' }}>{error}</p>}
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
           disabled={loading}
+          style={{
+            width: '100%',
+            padding: '10px',
+            background: 'var(--accent)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontWeight: 600,
+            fontSize: '1rem',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1
+          }}
         >
-          Masuk
+          {loading ? 'Memuat...' : 'Masuk'}
         </button>
       </form>
     </div>
