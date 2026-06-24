@@ -3,8 +3,6 @@ import asyncio
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from aiogram.fsm.storage.base import BaseStorage, StorageKey, StateType
-import httpx
-from supabase import ClientOptions
 from typing import Any, Dict, Optional
 
 load_dotenv()
@@ -14,18 +12,26 @@ key: str = os.environ.get("SUPABASE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABAS
 
 # Initialize Supabase client
 try:
-    supabase: Client = create_client(url, key, options=ClientOptions(http_client=httpx.Client()))
+    # Verify URL and key are present
+    if not url or not key:
+        raise ValueError("SUPABASE_URL or SUPABASE_KEY not set in environment")
+    supabase: Client = create_client(url, key)
 except Exception as e:
+    # Log concise but informative error
     print(f"Supabase init error: {e}")
     supabase = None
 
 async def check_user_registered(telegram_id: str) -> bool:
+    if supabase is None:
+        return False
     def _check():
         response = supabase.table("users").select("*").eq("telegram_id", telegram_id).execute()
         return len(response.data) > 0
     return await asyncio.to_thread(_check)
 
 async def get_user_data(telegram_id: str) -> dict:
+    if supabase is None:
+        return {}
     def _get():
         response = supabase.table("users").select("*").eq("telegram_id", telegram_id).execute()
         if response.data:
@@ -38,6 +44,8 @@ async def get_user_data(telegram_id: str) -> dict:
     return await asyncio.to_thread(_get)
 
 async def register_user(telegram_id: str, username: str, nama_lengkap: str, status: str, password_web: str) -> bool:
+    if supabase is None:
+        return False
     def _register():
         data = {
             "telegram_id": telegram_id,
