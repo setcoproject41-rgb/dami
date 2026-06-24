@@ -299,7 +299,6 @@ export default function Home() {
 
       const docChildren: any[] = [
         titleTable,
-        new Paragraph({ text: "", spacing: { before: 200, after: 200 } }),
         infoTable,
         new Paragraph({ text: "", spacing: { before: 150, after: 150 } }),
       ];
