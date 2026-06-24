@@ -18,6 +18,7 @@ class NewProject(StatesGroup):
 
 class LaporanProgress(StatesGroup):
     waiting_for_project = State()
+    waiting_for_main_category = State()
     waiting_for_folder = State()
     waiting_for_designator = State()
     waiting_for_volume = State()

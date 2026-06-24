@@ -92,28 +92,31 @@ export default function Home() {
           .eq('project_id', activeProject.id)
           .order('reported_at', { ascending: true });
         if (error) throw error;
-        const TASK_CATEGORIES = [
-          "BC-TR (GALIAN) / BORING MANUAL / ROJOK (DD-BM)",
-          "PEMASANGAN SUBDUCT / HDPE / PIPA",
-          "PEMBUATAN & PEMASANGAN HANDHOLE",
-          "PENARIKKAN KABEL FEEDER",
-          "PENARIKKAN KABEL DISTRIBUSI",
-          "PEMASANGAN TIANG 7m / 9m",
-          "PEMASANGAN ODC",
-          "PEMASANGAN ODP",
-          "PEMASANGAN DAN TERMINASI OTB",
-          "PEMASANGAN CLOSURE",
-          "PEMASANGAN AKSESORIS",
-          "TERMINASI ODC",
-          "TERMINASI ODP",
-          "TERMINASI CLOSURE",
-          "PEMASANGAN IKR/IKG",
-          "INSTALASI FTM",
-          "INSTALASI JUMPER FTM (OLT-FEEDER)"
-        ];
+        // Fetch activity structure from ACTIVITY.csv via API
+        let TASK_CATEGORIES: string[] = [];
+        try {
+          const actRes = await fetch('/api/activities');
+          if (actRes.ok) {
+            const structure: Record<string, Record<string, string[]>> = await actRes.json();
+            // Flatten all sub-categories from all main categories
+            Object.values(structure).forEach((subCats) => {
+              Object.keys(subCats).forEach((subCat) => {
+                if (!TASK_CATEGORIES.includes(subCat)) {
+                  TASK_CATEGORIES.push(subCat);
+                }
+              });
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to fetch activity structure, using fallback', e);
+        }
+        // Fallback: if API failed, use unique kategori values from reports
+        if (TASK_CATEGORIES.length === 0) {
+          TASK_CATEGORIES = Array.from(new Set((reports || []).map((r: any) => r.kategori)));
+        }
         const wbs: WbsRow[] = [];
         TASK_CATEGORIES.forEach((folder) => {
-          const folderReports = (reports || []).filter(r => r.kategori === folder);
+          const folderReports = (reports || []).filter((r: any) => r.kategori === folder);
           if (folderReports.length === 0) return;
           wbs.push({
             id: `folder-${folder}`,
