@@ -239,11 +239,11 @@ export default function Home() {
               width: { size: 30, type: WidthType.PERCENTAGE },
             }),
             new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: ":", bold: true })] })],
+              children: [new Paragraph({ children: [new TextRun({ text: ":" })] })],
               width: { size: 5, type: WidthType.PERCENTAGE },
             }),
             new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: val || "-", bold: true })] })],
+              children: [new Paragraph({ children: [new TextRun({ text: val || "-" })] })],
               width: { size: 65, type: WidthType.PERCENTAGE },
             }),
           ],
@@ -253,7 +253,7 @@ export default function Home() {
       const infoTable = new Table({
         borders: {
           top: { style: BorderStyle.NONE },
-          bottom: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
           left: { style: BorderStyle.NONE },
           right: { style: BorderStyle.NONE },
           insideHorizontal: { style: BorderStyle.NONE },
@@ -263,13 +263,29 @@ export default function Home() {
         rows: infoRows,
       });
 
-      const imgTableRows: any[] = [];
+      const docChildren: any[] = [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `"${selectedRow.activity.toUpperCase()}"`,
+              bold: true,
+              underline: {},
+              size: 32, // 16pt
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+        }),
+        infoTable,
+        new Paragraph({ text: "", spacing: { before: 150, after: 150 } }),
+      ];
+
       const evidence = selectedRow.evidence;
 
       for (let i = 0; i < evidence.length; i += 2) {
         const cells: any[] = [];
 
-        // Cell 1
+        // Column 1: Image 1
         const photo1 = evidence[i];
         const buffer1 = await fetchImageBuffer(photo1.file_id);
         if (buffer1) {
@@ -286,16 +302,35 @@ export default function Home() {
                 alignment: AlignmentType.CENTER,
               })
             ],
+            width: { size: 48, type: WidthType.PERCENTAGE },
             borders: {
-              top: { style: BorderStyle.NONE },
-              bottom: { style: BorderStyle.NONE },
-              left: { style: BorderStyle.NONE },
-              right: { style: BorderStyle.NONE },
+              top: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+              bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+              left: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+              right: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+            },
+            margins: {
+              top: 120,
+              bottom: 120,
+              left: 120,
+              right: 120,
             }
           }));
         }
 
-        // Cell 2
+        // Column 2: Spacer Column (4% width, no borders)
+        cells.push(new TableCell({
+          children: [new Paragraph("")],
+          width: { size: 4, type: WidthType.PERCENTAGE },
+          borders: {
+            top: { style: BorderStyle.NONE },
+            bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE },
+            right: { style: BorderStyle.NONE },
+          }
+        }));
+
+        // Column 3: Image 2
         if (i + 1 < evidence.length) {
           const photo2 = evidence[i + 1];
           const buffer2 = await fetchImageBuffer(photo2.file_id);
@@ -313,17 +348,26 @@ export default function Home() {
                   alignment: AlignmentType.CENTER,
                 })
               ],
+              width: { size: 48, type: WidthType.PERCENTAGE },
               borders: {
-                top: { style: BorderStyle.NONE },
-                bottom: { style: BorderStyle.NONE },
-                left: { style: BorderStyle.NONE },
-                right: { style: BorderStyle.NONE },
+                top: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+              },
+              margins: {
+                top: 120,
+                bottom: 120,
+                left: 120,
+                right: 120,
               }
             }));
           }
         } else {
+          // Empty cell on the right to preserve 3-column structure, NO borders
           cells.push(new TableCell({
             children: [new Paragraph("")],
+            width: { size: 48, type: WidthType.PERCENTAGE },
             borders: {
               top: { style: BorderStyle.NONE },
               bottom: { style: BorderStyle.NONE },
@@ -333,43 +377,34 @@ export default function Home() {
           }));
         }
 
-        imgTableRows.push(new TableRow({ children: cells }));
-      }
+        const rowTable = new Table({
+          borders: {
+            top: { style: BorderStyle.NONE },
+            bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE },
+            right: { style: BorderStyle.NONE },
+            insideHorizontal: { style: BorderStyle.NONE },
+            insideVertical: { style: BorderStyle.NONE },
+          },
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({ children: cells })
+          ],
+        });
 
-      const imgTable = new Table({
-        borders: {
-          top: { style: BorderStyle.NONE },
-          bottom: { style: BorderStyle.NONE },
-          left: { style: BorderStyle.NONE },
-          right: { style: BorderStyle.NONE },
-          insideHorizontal: { style: BorderStyle.NONE },
-          insideVertical: { style: BorderStyle.NONE },
-        },
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: imgTableRows,
-      });
+        docChildren.push(rowTable);
+
+        // Add spacing paragraph after the row table, except for the last row
+        if (i + 2 < evidence.length) {
+          docChildren.push(new Paragraph({ text: "", spacing: { before: 100, after: 100 } }));
+        }
+      }
 
       const doc = new Document({
         sections: [
           {
             properties: {},
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: `"${selectedRow.activity.toUpperCase()}"`,
-                    bold: true,
-                    underline: {},
-                    size: 32, // 16pt
-                  }),
-                ],
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 300 },
-              }),
-              infoTable,
-              new Paragraph({ text: "", spacing: { before: 200, after: 200 } }),
-              imgTable,
-            ],
+            children: docChildren,
           },
         ],
       });
