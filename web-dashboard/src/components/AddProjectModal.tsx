@@ -38,7 +38,7 @@ export const AddProjectModal: React.FC<{ isOpen: boolean; onClose: () => void; o
     const { error } = await supabase.from('projects').insert([
       {
         ...form,
-        created_by: user.id
+        created_by: user.telegram_id
       }
     ]);
     setLoading(false);

@@ -8,7 +8,12 @@ export default function LoginPage() {
   const [telegramId, setTelegramId] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
-  const { login, loading } = useAuth();
+  const { login, loading, user } = useAuth();
+
+  // If already logged in, redirect
+  React.useEffect(() => {
+    if (user) router.push('/');
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,12 +22,11 @@ export default function LoginPage() {
       setError('Masukkan Telegram ID Anda.');
       return;
     }
-    try {
-      await login(telegramId.trim());
+    const success = await login(telegramId.trim());
+    if (success) {
       router.push('/');
-    } catch (err) {
-      console.error(err);
-      setError('Login gagal. Pastikan ID terdaftar.');
+    } else {
+      setError('Login gagal. ID Telegram tidak ditemukan di database.');
     }
   };
 
