@@ -199,7 +199,8 @@ export default function Home() {
 
   const handleProjectUpdate = async (updated: Project) => {
     if (!user) return;
-    const { error } = await supabase.from('projects').update(updated).eq('id', updated.id);
+    const { id, created_at, created_by, ...updateData } = updated as any;
+    const { error } = await supabase.from('projects').update(updateData).eq('id', id);
     if (!error) await refreshProjects();
     else console.error('Error updating project', error);
   };

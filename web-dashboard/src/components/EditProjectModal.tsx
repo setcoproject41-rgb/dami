@@ -34,14 +34,35 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const EDITABLE_FIELDS = [
+    'nama_mitra',
+    'nama_user',
+    'proyek',
+    'no_kontrak',
+    'nomor_po',
+    'area_lokasi',
+    'site_operation',
+    'pelaksana'
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
-    const { error } = await supabase.from('projects').update(form).eq('id', project.id);
+    const updateData = {
+      nama_mitra: form.nama_mitra,
+      nama_user: form.nama_user,
+      proyek: form.proyek,
+      no_kontrak: form.no_kontrak,
+      nomor_po: form.nomor_po,
+      area_lokasi: form.area_lokasi,
+      site_operation: form.site_operation,
+      pelaksana: form.pelaksana
+    };
+    const { error } = await supabase.from('projects').update(updateData).eq('id', project.id);
     setLoading(false);
     if (!error) {
-      onProjectUpdated(form);
+      onProjectUpdated({ ...project, ...updateData });
       onClose();
     } else {
       console.error('Error updating project', error);
@@ -56,20 +77,18 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', padding: '20px', borderRadius: '12px', width: '420px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
         <h2 style={{ marginBottom: '12px' }}>Edit Proyek</h2>
         <form onSubmit={handleSubmit}>
-          {Object.entries(form).map(([key, value]) => (
-            key !== 'id' && (
-              <div key={key} style={{ marginBottom: '8px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{key.replace('_', ' ')}</label>
-                <input
-                  type="text"
-                  name={key}
-                  value={value as string}
-                  onChange={handleChange}
-                  required
-                  style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid var(--border)' }}
-                />
-              </div>
-            )
+          {EDITABLE_FIELDS.map((key) => (
+            <div key={key} style={{ marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{key.replace('_', ' ')}</label>
+              <input
+                type="text"
+                name={key}
+                value={(form[key as keyof Project] || '') as string}
+                onChange={handleChange}
+                required
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid var(--border)' }}
+              />
+            </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
             <button type="button" onClick={onClose} disabled={loading} style={{ marginRight: '8px', background: 'var(--border)', color: 'var(--text-primary)', padding: '6px 12px', borderRadius: '4px' }}>Batal</button>
