@@ -94,11 +94,18 @@ export default function Home() {
           .order('reported_at', { ascending: true });
         if (error) throw error;
         // Fetch activity structure from ACTIVITY.csv via API
-        let activityStructure: Record<string, Record<string, string[]>> = {};
+        let activityStructure: Record<string, Record<string, { point: string; uom: string }[]>> = {};
+        const uomMap: Record<string, string> = {}; // point -> uom
         try {
           const actRes = await fetch('/api/activities');
           if (actRes.ok) {
             activityStructure = await actRes.json();
+            // Build flat uomMap: { 'EXCAVATION-0.4': 'meter', ... }
+            Object.values(activityStructure).forEach((subCats) => {
+              Object.values(subCats).forEach((points) => {
+                points.forEach(({ point, uom }) => { uomMap[point] = uom; });
+              });
+            });
           }
         } catch (e) {
           console.warn('Failed to fetch activity structure, using fallback', e);
@@ -136,7 +143,7 @@ export default function Home() {
             let mainMaxDate: Date | null = null;
 
             // Sub-categories: only show if they have reports
-            Object.keys(subCats).forEach((subCat) => {
+            Object.entries(subCats).forEach(([subCat, subPoints]) => {
               const folderReports = (reports || []).filter((r: any) => r.kategori === subCat);
               if (folderReports.length === 0) return;
 
@@ -159,7 +166,8 @@ export default function Home() {
               designators.forEach((desig) => {
                 const desigReports = folderReports.filter((r: any) => r.sub_kategori === desig);
                 const accum = desigReports.reduce((s: number, r: any) => s + Number(r.volume_input || 0), 0);
-                const { target, uom } = getTargetAndUom(desig as string);
+                const uom = uomMap[desig as string] || desigReports[0]?.satuan || 'Lot';
+                const { target } = getTargetAndUom(desig as string);
                 const progress = Math.min(100, Math.round((accum / target) * 100));
                 let minDate: Date | null = null;
                 let maxDate: Date | null = null;
@@ -223,7 +231,8 @@ export default function Home() {
             designators.forEach((desig) => {
               const desigReports = folderReports.filter((r: any) => r.sub_kategori === desig);
               const accum = desigReports.reduce((s: number, r: any) => s + Number(r.volume_input || 0), 0);
-              const { target, uom } = getTargetAndUom(desig as string);
+              const uom = uomMap[desig as string] || desigReports[0]?.satuan || 'Lot';
+              const { target } = getTargetAndUom(desig as string);
               const progress = Math.min(100, Math.round((accum / target) * 100));
               let minDate: Date | null = null; let maxDate: Date | null = null;
               if (desigReports.length) {

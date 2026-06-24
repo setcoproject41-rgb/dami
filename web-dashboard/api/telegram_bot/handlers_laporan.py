@@ -54,6 +54,7 @@ def load_activities_structure():
     categories_structure = {}
     current_category = ""
     current_sub_category = ""
+    current_sub_uom = ""
     try:
         with open(csv_path, mode='r', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter=';')
@@ -63,21 +64,28 @@ def load_activities_structure():
                 cat = row[0].strip() if len(row) > 0 else ""
                 sub = row[1].strip() if len(row) > 1 else ""
                 pt  = row[2].strip() if len(row) > 2 else ""
+                uom = row[3].strip().replace('\r', '') if len(row) > 3 else ""
 
                 if cat.startswith("ACTIVITY") or cat.startswith("CATEGORY"):
                     continue
                 if cat:
                     current_category = cat
+                    current_sub_category = ""
+                    current_sub_uom = uom or ""
                 if sub:
                     current_sub_category = sub
+                    current_sub_uom = uom or current_sub_uom
                 if not current_category or not current_sub_category:
                     continue
                 if current_category not in categories_structure:
                     categories_structure[current_category] = {}
                 if current_sub_category not in categories_structure[current_category]:
                     categories_structure[current_category][current_sub_category] = []
-                if pt and pt != "-":
-                    categories_structure[current_category][current_sub_category].append(pt)
+                if pt and pt != "-" and pt != "?":
+                    point_uom = uom or current_sub_uom or "Lot"
+                    categories_structure[current_category][current_sub_category].append(
+                        {"point": pt, "uom": point_uom}
+                    )
     except Exception as e:
         print(f"Error parsing ACTIVITY.csv: {e}")
     return categories_structure
@@ -121,15 +129,26 @@ def get_required_photo_count(t: str, vol: float) -> int:
         required_photos = max(1, int(vol * 2))
     return required_photos
 
-def get_uom(designator: str) -> str:
+def get_uom(main_cat: str, sub_cat: str, designator: str) -> str:
+    """Get UoM from ACTIVITY.csv structure. Falls back to pattern matching."""
+    try:
+        sub_cats = CATEGORIES_STRUCTURE.get(main_cat, {})
+        points = sub_cats.get(sub_cat, [])
+        for item in points:
+            if isinstance(item, dict) and item.get("point") == designator:
+                return item.get("uom", "Lot")
+    except Exception:
+        pass
+    # Fallback pattern matching
     des_upper = designator.upper()
     if any(k in des_upper for k in ["EXCAVATION", "HDPE", "PIPE", "ADSS"]):
         return "meter"
     elif "CORE" in des_upper or "FS-OF-SM" in des_upper or "OTB-SM" in des_upper:
-        return "core"
-    elif any(k in des_upper for k in ["NP-", "MH-", "HH-", "FDT-", "FAT-", "JC-", "ACC-", "BRACKET", "BELT"]):
+        return "titik"
+    elif any(k in des_upper for k in ["NP-", "MH-", "HH-", "FDT-", "FAT-", "JC-", "ACC-"]):
         return "pcs"
     return "Lot"
+
 
 
 # ==================== STEP 1: PILIH PROJECT ====================
@@ -198,11 +217,11 @@ async def process_folder_select(callback: types.CallbackQuery, state: FSMContext
     sub_cat_name = sub_categories[sub_idx]
     await state.update_data(folder_name=sub_cat_name, sub_cat_idx=sub_idx)
 
-    designators = CATEGORIES_STRUCTURE.get(main_cat_name, {}).get(sub_cat_name, [])
+    designator_items = CATEGORIES_STRUCTURE.get(main_cat_name, {}).get(sub_cat_name, [])
 
     # If no designators, skip straight to volume input using sub_cat as the designator
-    if not designators:
-        uom = get_uom(sub_cat_name)
+    if not designator_items:
+        uom = get_uom(main_cat_name, sub_cat_name, sub_cat_name)
         await state.update_data(designator=sub_cat_name, uom=uom)
         await callback.message.edit_text(
             f"📊 **SUB-KATEGORI: {sub_cat_name} ({uom})**\n\nSilakan masukkan **Volume Aktual** (berupa angka):"
@@ -211,10 +230,13 @@ async def process_folder_select(callback: types.CallbackQuery, state: FSMContext
         return
 
     keyboard_buttons = []
-    for i in range(0, len(designators), 2):
+    for i in range(0, len(designator_items), 2):
         row = [
-            InlineKeyboardButton(text=designators[j], callback_data=f"selectdesig_{main_idx}_{sub_idx}_{j}")
-            for j in range(i, min(i + 2, len(designators)))
+            InlineKeyboardButton(
+                text=designator_items[j]["point"] if isinstance(designator_items[j], dict) else designator_items[j],
+                callback_data=f"selectdesig_{main_idx}_{sub_idx}_{j}"
+            )
+            for j in range(i, min(i + 2, len(designator_items)))
         ]
         keyboard_buttons.append(row)
     keyboard_buttons.append([InlineKeyboardButton(text="🔙 Kembali", callback_data=f"selectmaincat_{main_idx}")])
@@ -235,10 +257,11 @@ async def process_designator_select(callback: types.CallbackQuery, state: FSMCon
     main_cat_name = main_categories[main_idx]
     sub_categories = list(CATEGORIES_STRUCTURE.get(main_cat_name, {}).keys())
     sub_cat_name = sub_categories[sub_idx]
-    designators = CATEGORIES_STRUCTURE.get(main_cat_name, {}).get(sub_cat_name, [])
-    designator = designators[des_idx]
+    designator_items = CATEGORIES_STRUCTURE.get(main_cat_name, {}).get(sub_cat_name, [])
+    item = designator_items[des_idx]
+    designator = item["point"] if isinstance(item, dict) else item
+    uom = item["uom"] if isinstance(item, dict) else get_uom(main_cat_name, sub_cat_name, designator)
 
-    uom = get_uom(designator)
     await state.update_data(designator=designator, uom=uom)
     await callback.message.edit_text(f"📊 **DESIGNATOR: {designator} ({uom})**\n\nSilakan masukkan **Volume Aktual** (berupa angka):")
     await state.set_state(LaporanProgress.waiting_for_volume)
