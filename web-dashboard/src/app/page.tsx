@@ -50,6 +50,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
+  const [generatingDocx, setGeneratingDocx] = useState(false);
 
   const isAdmin = !!user && (user.is_admin || user.telegram_id === '81358099');
 
@@ -113,6 +114,7 @@ export default function Home() {
         const wbs: WbsRow[] = [];
         TASK_CATEGORIES.forEach((folder) => {
           const folderReports = (reports || []).filter(r => r.kategori === folder);
+          if (folderReports.length === 0) return;
           wbs.push({
             id: `folder-${folder}`,
             activity: folder,
@@ -203,6 +205,190 @@ export default function Home() {
     const { error } = await supabase.from('projects').update(updateData).eq('id', id);
     if (!error) await refreshProjects();
     else console.error('Error updating project', error);
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!selectedProject || !selectedRow || selectedRow.evidence.length === 0) return;
+    setGeneratingDocx(true);
+    try {
+      const { Document, Packer, Paragraph, Table, TableRow, TableCell, ImageRun, WidthType, AlignmentType, TextRun, BorderStyle } = await import("docx");
+
+      const fetchImageBuffer = async (fileId: string): Promise<ArrayBuffer | null> => {
+        try {
+          const res = await fetch(`/api/evident-image?file_id=${fileId}`);
+          if (!res.ok) return null;
+          return await res.arrayBuffer();
+        } catch (err) {
+          console.error("Error fetching image buffer:", err);
+          return null;
+        }
+      };
+
+      const infoRows = [
+        ["Proyek", selectedProject.proyek],
+        ["No Kontrak", selectedProject.no_kontrak],
+        ["Nomor PO", selectedProject.nomor_po],
+        ["Lokasi", selectedProject.area_lokasi],
+        ["Site Operation", selectedProject.site_operation],
+        ["Pelaksana", selectedProject.pelaksana]
+      ].map(([label, val]) => {
+        return new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })],
+              width: { size: 30, type: WidthType.PERCENTAGE },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: ":", bold: true })] })],
+              width: { size: 5, type: WidthType.PERCENTAGE },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: val || "-", bold: true })] })],
+              width: { size: 65, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        });
+      });
+
+      const infoTable = new Table({
+        borders: {
+          top: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.NONE },
+          left: { style: BorderStyle.NONE },
+          right: { style: BorderStyle.NONE },
+          insideHorizontal: { style: BorderStyle.NONE },
+          insideVertical: { style: BorderStyle.NONE },
+        },
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: infoRows,
+      });
+
+      const imgTableRows: any[] = [];
+      const evidence = selectedRow.evidence;
+
+      for (let i = 0; i < evidence.length; i += 2) {
+        const cells: any[] = [];
+
+        // Cell 1
+        const photo1 = evidence[i];
+        const buffer1 = await fetchImageBuffer(photo1.file_id);
+        if (buffer1) {
+          cells.push(new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: new Uint8Array(buffer1),
+                    type: "jpg",
+                    transformation: { width: 280, height: 210 },
+                  })
+                ],
+                alignment: AlignmentType.CENTER,
+              })
+            ],
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.NONE },
+              left: { style: BorderStyle.NONE },
+              right: { style: BorderStyle.NONE },
+            }
+          }));
+        }
+
+        // Cell 2
+        if (i + 1 < evidence.length) {
+          const photo2 = evidence[i + 1];
+          const buffer2 = await fetchImageBuffer(photo2.file_id);
+          if (buffer2) {
+            cells.push(new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new ImageRun({
+                      data: new Uint8Array(buffer2),
+                      type: "jpg",
+                      transformation: { width: 280, height: 210 },
+                    })
+                  ],
+                  alignment: AlignmentType.CENTER,
+                })
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+              }
+            }));
+          }
+        } else {
+          cells.push(new TableCell({
+            children: [new Paragraph("")],
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.NONE },
+              left: { style: BorderStyle.NONE },
+              right: { style: BorderStyle.NONE },
+            }
+          }));
+        }
+
+        imgTableRows.push(new TableRow({ children: cells }));
+      }
+
+      const imgTable = new Table({
+        borders: {
+          top: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.NONE },
+          left: { style: BorderStyle.NONE },
+          right: { style: BorderStyle.NONE },
+          insideHorizontal: { style: BorderStyle.NONE },
+          insideVertical: { style: BorderStyle.NONE },
+        },
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: imgTableRows,
+      });
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `"${selectedRow.activity.toUpperCase()}"`,
+                    bold: true,
+                    underline: {},
+                    size: 32, // 16pt
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 300 },
+              }),
+              infoTable,
+              new Paragraph({ text: "", spacing: { before: 200, after: 200 } }),
+              imgTable,
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Laporan_${selectedProject.proyek}_${selectedRow.activity}.docx`.replace(/\s+/g, '_');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error generating docx:", err);
+      alert("Gagal mengunduh dokumen Word.");
+    } finally {
+      setGeneratingDocx(false);
+    }
   };
 
   if (authLoading) return <div className="spinner" />;
@@ -355,7 +541,26 @@ export default function Home() {
                   <div className="empty-state">Pekerjaan <b>{selectedRow.activity}</b> belum memiliki bukti foto.</div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Bukti foto untuk: <b>{selectedRow.activity}</b> ({selectedRow.evidence.length})</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Bukti foto untuk: <b>{selectedRow.activity}</b> ({selectedRow.evidence.length})
+                      </span>
+                      <button onClick={handleDownloadDocx} disabled={generatingDocx} style={{
+                        padding: '6px 12px',
+                        background: 'var(--accent)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {generatingDocx ? '⏳ Membuat Word...' : '📝 Unduh Word (.docx)'}
+                      </button>
+                    </div>
                     <div className="photo-grid">
                       {selectedRow.evidence.map((photo, i) => (
                         <div key={i} className="photo-card"><img src={`/api/evident-image?file_id=${photo.file_id}`} alt={`Evident ${i + 1}`} loading="lazy" /></div>
