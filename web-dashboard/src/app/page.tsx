@@ -147,7 +147,10 @@ function LineChart({ data, height = 140 }: { data: TimelinePoint[]; height?: num
 // ─────────────────────────────────────────────
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
+  // State for project grouping by mitra (partner)
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectGroups, setProjectGroups] = useState<Record<string, Project[]>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [wbsData, setWbsData] = useState<WbsRow[]>([]);
   const [rawReports, setRawReports] = useState<any[]>([]);
@@ -157,8 +160,13 @@ export default function Home() {
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [generatingDocx, setGeneratingDocx] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'laporan'>('dashboard');
+const [isAllProjects, setIsAllProjects] = useState<boolean>(true);
 
   const isAdmin = !!user && (user.is_admin || user.telegram_id === '81358099');
+  // Helper to toggle folder expansion
+  const toggleGroup = (mitra: string) => {
+    setExpandedGroups(prev => ({ ...prev, [mitra]: !prev[mitra] }));
+  };
 
   // Fetch projects on mount
   useEffect(() => {
@@ -169,9 +177,12 @@ export default function Home() {
           .select('*')
           .order('created_at', { ascending: false });
         if (error) throw error;
-        setProjects(data || []);
-        if (data && data.length > 0) setSelectedProject(data[0]);
-        else setLoading(false);
+        if (data && data.length > 0) {
+  setProjects(data);
+  if (!isAllProjects) setSelectedProject(data[0]);
+} else {
+  setLoading(false);
+}
       } catch (err) {
         console.error('Error fetching projects:', err);
         setLoading(false);
@@ -179,6 +190,17 @@ export default function Home() {
     }
     fetchProjects();
   }, []);
+
+// Group projects by mitra
+useEffect(() => {
+  const groups: Record<string, Project[]> = {};
+  projects.forEach(p => {
+    const key = p.nama_mitra || 'Other';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  });
+  setProjectGroups(groups);
+}, [projects]);
 
   // Fetch progress when selectedProject changes
   useEffect(() => {
@@ -192,11 +214,11 @@ export default function Home() {
       setLoading(true);
       setSelectedRow(null);
       try {
-        const { data: reports, error } = await supabase
-          .from('progress_reports')
-          .select('*')
-          .eq('project_id', activeProject.id)
-          .order('reported_at', { ascending: true });
+        let query = supabase.from('progress_reports').select('*').order('reported_at', { ascending: true });
+if (activeProject) {
+  query = query.eq('project_id', activeProject.id);
+}
+const { data: reports, error } = await query;
         if (error) throw error;
         setRawReports(reports || []);
 
@@ -388,6 +410,17 @@ export default function Home() {
     setProjects(data || []);
     if (data && data.length) setSelectedProject(data[0]);
   };
+const handleProjectDelete = async (proj: Project) => {
+  if (!user) return;
+  if (!window.confirm(`Apakah Anda yakin ingin menghapus proyek ${proj.proyek}?`)) return;
+  const { error } = await supabase.from('projects').delete().eq('id', proj.id);
+  if (error) {
+    console.error('Error deleting project', error);
+  } else {
+    await refreshProjects();
+    if (selectedProject?.id === proj.id) setSelectedProject(null);
+  }
+};
 
   const handleProjectUpdate = async (updated: Project) => {
     if (!user) return;
@@ -746,33 +779,63 @@ export default function Home() {
     <div className="app-container">
       {/* Sidebar */}
       <aside className="sidebar">
-        <div className="sidebar-header">📊 Project Hub</div>
-        <div style={{ padding: '16px 20px 8px 20px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daftar Proyek</div>
-        {isAdmin && (
-          <button onClick={() => setShowAddModal(true)} className="add-project-btn" style={{ margin: '0 20px 12px', padding: '6px 12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+ Tambah Proyek</button>
-        )}
-        {projects.length === 0 ? (
-          <div style={{ padding: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Belum ada proyek aktif.</div>
-        ) : (
-          <ul className="sidebar-project-list">
-            {projects.map(proj => (
-              <li key={proj.id}
-                className={`project-item ${selectedProject?.id === proj.id ? 'active' : ''}`}
-                onClick={() => setSelectedProject(proj)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <span className="project-title">{proj.proyek}</span>
-                  <span className="project-mitra">{proj.nama_mitra}</span>
-                </div>
-                {isAdmin && (
-                  <button onClick={(e) => { e.stopPropagation(); setEditProject(proj); }}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '1rem' }}>✏️</button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </aside>
+  <div className="sidebar-header">📊 Project Hub</div>
+  <div style={{ padding: '16px 20px 8px 20px', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daftar Proyek</div>
+  {isAdmin && (
+    <button onClick={() => setShowAddModal(true)} className="add-project-btn" style={{ margin: '0 20px 12px', padding: '6px 12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+ Tambah Proyek</button>
+  )}
+  {projects.length === 0 ? (
+    <div style={{ padding: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Belum ada proyek aktif.</div>
+  ) : (
+    <ul className="sidebar-project-list">
+      {/* All Projects */}
+      <li
+        className={`project-item ${isAllProjects ? 'active' : ''}`}
+        onClick={() => { setIsAllProjects(true); setSelectedProject(null); }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+        <div>
+          <span className="project-title">All Projects</span>
+        </div>
+      </li>
+      {/* Grouped by Mitra */}
+      {Object.entries(projectGroups).map(([mitra, projs]) => (
+        <li key={mitra}>
+          <div
+            className="group-header"
+            onClick={() => toggleGroup(mitra)}
+            style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 0', color: 'var(--text-primary)', fontWeight: 600 }}>
+            <span>{mitra}</span>
+            <span>{expandedGroups[mitra] ? '▾' : '▸'}</span>
+          </div>
+          {expandedGroups[mitra] && (
+            <ul className="group-project-list">
+              {projs.map(p => (
+                <li
+                  key={p.id}
+                  className={`project-item ${selectedProject?.id === p.id && !isAllProjects ? 'active' : ''}`}
+                  onClick={() => { setIsAllProjects(false); setSelectedProject(p); }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '12px' }}>
+                  <div>
+                    <span className="project-title">{p.proyek}</span>
+                    <span className="project-mitra">{p.nama_mitra}</span>
+                  </div>
+                  {isAdmin && (
+                    <> 
+                      <button onClick={(e) => { e.stopPropagation(); setEditProject(p); }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '1rem' }}>✏️</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleProjectDelete(p); }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#f44336', fontSize: '1rem' }}>✖️</button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  )}
+</aside>
 
       {/* Main Content */}
       <main className="main-content">
